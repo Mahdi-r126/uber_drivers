@@ -15,11 +15,11 @@ The feathers of this app are :<br />
 6- set rating (SOON)<br />
 7- locate your destination and update your location to arrive (SOON)<br />
 ## Preview
-<p float="left">
+
   <img src="https://user-images.githubusercontent.com/75057732/217856387-ce5016f4-3160-44e9-90f2-3324146158e7.jpg" width="400"/>
   <img src="https://user-images.githubusercontent.com/75057732/217856561-7e5280c3-fd3e-4c2a-b77d-015125371de8.jpg" width="400"/>
   <img src="https://user-images.githubusercontent.com/75057732/217856656-c686746a-5ddf-4f79-80b6-cd0a1d059c35.jpg" width="400"/>
-</p>
+
 
 ## Clone project
 
