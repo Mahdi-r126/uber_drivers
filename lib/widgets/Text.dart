@@ -11,6 +11,7 @@ class PersianTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
+      overflow:TextOverflow.ellipsis,
       text,
       textAlign: TextAlign.right,
       textDirection: TextDirection.rtl,

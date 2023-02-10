@@ -1,11 +1,16 @@
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uber_drivers/helpers/helpermethodes.dart';
+import 'package:uber_drivers/models/tripDetails.dart';
+import 'package:uber_drivers/widgets/ProgressDialog.dart';
+import 'package:uber_drivers/widgets/Text.dart';
 
 import '../brand_colors.dart';
 import '../globalVar.dart';
@@ -27,12 +32,32 @@ class _HomeTabState extends State<HomeTab> {
   late Position currentPosition;
   late String id;
 
-  var locationOptions = LocationOptions(
+  var locationOptions = const LocationOptions(
       accuracy: LocationAccuracy.bestForNavigation, distanceFilter: 1);
 
   String availabilityTitle = "روشن";
   Color availabilityColor = BrandColors.colorOrange;
   bool isAvailable = false;
+
+  Query? _ref;
+  TripDetails tripDetails = TripDetails();
+  List tripList = [];
+
+  double tripSheetHeight = 0;
+
+  void fetchTripList() {
+    _ref = FirebaseDatabase.instance
+        .reference()
+        .child("rideRequest")
+        .orderByChild("time_created");
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    fetchTripList();
+  }
 
   void SetCurrentLocation() async {
     Position position = await geolocator.getCurrentPosition(
@@ -42,6 +67,49 @@ class _HomeTabState extends State<HomeTab> {
     print("Lat:${pos.latitude} , Lng:${pos.longitude}");
     CameraPosition cp = CameraPosition(target: pos, zoom: 14);
     mapController.animateCamera(CameraUpdate.newCameraPosition(cp));
+  }
+
+  //getting trip Data for show
+  void fetchRideInfo(String rideId) async {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) =>
+            const ProgressDialog(status: "درحال ورود"));
+    DatabaseReference rideRef = await FirebaseDatabase.instance
+        .reference()
+        .child("rideRequest/$rideId");
+    Navigator.pop(context);
+    rideRef.once().then((DataSnapshot snapshot) {
+      if (snapshot.value != null) {
+        double pickupLat =
+            double.parse(snapshot.value["location"]["lat"].toString());
+        double pickupLng =
+            double.parse(snapshot.value["location"]["long"].toString());
+        String pickupAddress = snapshot.value["pickup_address"].toString();
+
+        double destinationLat =
+            double.parse(snapshot.value["destination"]["lat"].toString());
+        double destinationLng =
+            double.parse(snapshot.value["destination"]["long"].toString());
+        String destinationAddress =
+            snapshot.value["destination_address"].toString();
+        String paymentMethod = snapshot.value["payment-method"];
+        String riderName = snapshot.value["rider_name"];
+        String riderPhone = snapshot.value["rider_phone"];
+
+        TripDetails tripDetails = TripDetails();
+        tripDetails.rideId = rideId;
+        tripDetails.pickupAddress = pickupAddress;
+        tripDetails.pickup = LatLng(pickupLat, pickupLng);
+        tripDetails.destination = LatLng(destinationLat, destinationLng);
+        tripDetails.destinationAddress = destinationAddress;
+        tripDetails.paymentMethod = paymentMethod;
+        tripDetails.riderName = riderName;
+        tripDetails.riderPhone = riderPhone;
+        print(pickupAddress);
+      }
+    });
   }
 
   static const CameraPosition _kLake = CameraPosition(
@@ -93,6 +161,7 @@ class _HomeTabState extends State<HomeTab> {
                               getLocationUpdate();
                               Navigator.pop(context);
                               setState(() {
+                                tripSheetHeight = 250;
                                 isAvailable = true;
                                 availabilityColor = BrandColors.colorGreen;
                                 availabilityTitle = "خاموش";
@@ -109,12 +178,63 @@ class _HomeTabState extends State<HomeTab> {
                               goOffline();
                               Navigator.pop(context);
                               setState(() {
+                                tripSheetHeight = 0;
                                 isAvailable = false;
                                 availabilityColor = BrandColors.colorOrange;
                                 availabilityTitle = "روشن";
                               });
                             }));
                   }
+                },
+              ),
+            ),
+          ),
+        ),
+        //trip sheet
+        Positioned(
+          right: 0,
+          bottom: 0,
+          left: 0,
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 100),
+            curve: Curves.easeIn,
+            child: Container(
+              height: tripSheetHeight,
+              decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(15),
+                      topRight: Radius.circular(15)),
+                  boxShadow: [
+                    BoxShadow(
+                        blurRadius: 15,
+                        spreadRadius: 0.5,
+                        offset: Offset(0.7, 0.7))
+                  ]),
+              child: FirebaseAnimatedList(
+                scrollDirection: Axis.horizontal,
+                shrinkWrap: true,
+                physics: const ClampingScrollPhysics(),
+                query: _ref,
+                itemBuilder: (BuildContext context, DataSnapshot snapshot,
+                    Animation<double> animation, int index) {
+                  Map item = snapshot.value;
+                  tripDetails.destinationAddress = item["destination_address"];
+                  tripDetails.pickupAddress = item["pickup_address"];
+                  tripDetails.destination = LatLng(
+                      double.parse(item["destination"]["lat"]),
+                      double.parse(item["destination"]["long"]));
+                  tripDetails.pickup = LatLng(
+                      double.parse(item["location"]["lat"]),
+                      double.parse(item["location"]["long"]));
+                  tripDetails.paymentMethod = item["payment-method"];
+                  tripDetails.riderName = item["rider_name"];
+                  tripDetails.riderPhone = item["rider_phone"];
+                  tripDetails.tripId = snapshot.key;
+                  tripList.add(tripDetails);
+                  return TripTile(
+                      tripDetails: tripList[index],
+                    );
                 },
               ),
             ),
@@ -150,11 +270,97 @@ class _HomeTabState extends State<HomeTab> {
         .getPositionStream(locationOptions)
         .listen((Position position) {
       currentPosition = position;
-      if(isAvailable){
+      if (isAvailable) {
         Geofire.setLocation(id, position.latitude, position.longitude);
       }
       LatLng pos = LatLng(position.latitude, position.longitude);
       mapController.animateCamera(CameraUpdate.newLatLng(pos));
     });
+  }
+}
+
+class TripTile extends StatelessWidget {
+  TripDetails tripDetails = TripDetails();
+  TripTile({required this.tripDetails});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Image.asset(
+              "assets/images/taxi.png",
+              width: 70,
+            ),
+            const SizedBox(
+              height: 5,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              textDirection: TextDirection.rtl,
+              children: [
+                Image.asset("assets/images/pickicon.png", width: 20),
+                const SizedBox(
+                  width: 3,
+                ),
+                PersianTextField(
+                  text: "مبدا:",
+                  textSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+                PersianTextField(
+                  text: HelperMethods.splitDisplayName(
+                      tripDetails.pickupAddress.toString()),
+                  textSize: 16,
+                )
+              ],
+            ),
+            const SizedBox(
+              height: 5,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              textDirection: TextDirection.rtl,
+              children: [
+                Image.asset("assets/images/redmarker.png", width: 20),
+                const SizedBox(
+                  width: 3,
+                ),
+                PersianTextField(
+                  text: "مقصد:",
+                  textSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+                PersianTextField(
+                  text: HelperMethods.splitDisplayName(
+                      tripDetails.destinationAddress.toString()),
+                  textSize: 16,
+                )
+              ],
+            ),
+            const SizedBox(
+              height: 15,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 120),
+              child: MaterialButton(
+                color: BrandColors.colorGreen,
+                height: 40,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
+                onPressed: () {
+                  print(tripDetails.tripId);
+                },
+                child: PersianTextField(
+                    text: "قبول سفر", color: Colors.white, textSize: 17),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
   }
 }
