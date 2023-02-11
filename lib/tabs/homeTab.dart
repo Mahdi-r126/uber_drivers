@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uber_drivers/helpers/helpermethodes.dart';
 import 'package:uber_drivers/helpers/tripHelperMethod.dart';
+import 'package:uber_drivers/models/driverModel.dart';
 import 'package:uber_drivers/models/tripDetails.dart';
 import 'package:uber_drivers/widgets/ProgressDialog.dart';
 import 'package:uber_drivers/widgets/Text.dart';
@@ -30,7 +32,6 @@ class _HomeTabState extends State<HomeTab> {
   Completer<GoogleMapController> _controller = Completer();
 
   var geolocator = Geolocator();
-  late Position currentPosition;
   late String id;
 
   var locationOptions = const LocationOptions(
@@ -49,9 +50,9 @@ class _HomeTabState extends State<HomeTab> {
   void fetchTripList() {
     setState(() {
       _ref = FirebaseDatabase.instance
-        .reference()
-        .child("rideRequest")
-        .orderByChild("time_created");
+          .reference()
+          .child("rideRequest")
+          .orderByChild("time_created");
     });
   }
 
@@ -60,6 +61,7 @@ class _HomeTabState extends State<HomeTab> {
     // TODO: implement initState
     super.initState();
     fetchTripList();
+    getCurrentDriverInfo();
   }
 
   void SetCurrentLocation() async {
@@ -70,6 +72,18 @@ class _HomeTabState extends State<HomeTab> {
     print("Lat:${pos.latitude} , Lng:${pos.longitude}");
     CameraPosition cp = CameraPosition(target: pos, zoom: 14);
     mapController.animateCamera(CameraUpdate.newCameraPosition(cp));
+  }
+
+  void getCurrentDriverInfo() async {
+    currentDriverInfo = DriverModels();
+    currentFirebaseUser = await FirebaseAuth.instance.currentUser();
+    DatabaseReference driverRef = FirebaseDatabase.instance
+        .reference()
+        .child("drivers/${currentFirebaseUser.uid}");
+    driverRef.once().then((DataSnapshot snapshot) => {
+          if (snapshot != null)
+            {currentDriverInfo = DriverModels.fromSnapshot(snapshot)}
+        });
   }
 
   //getting trip Data for show
@@ -355,8 +369,7 @@ class TripTile extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30)),
                 onPressed: () {
-                  TripHelperMethods.checkTripAvailablity(
-                      tripDetails, context);
+                  TripHelperMethods.checkTripAvailablity(tripDetails, context);
                 },
                 child: PersianTextField(
                     text: "قبول سفر", color: Colors.white, textSize: 17),
