@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uber_drivers/helpers/helpermethodes.dart';
+import 'package:uber_drivers/helpers/tripHelperMethod.dart';
 import 'package:uber_drivers/models/tripDetails.dart';
 import 'package:uber_drivers/widgets/ProgressDialog.dart';
 import 'package:uber_drivers/widgets/Text.dart';
@@ -46,10 +47,12 @@ class _HomeTabState extends State<HomeTab> {
   double tripSheetHeight = 0;
 
   void fetchTripList() {
-    _ref = FirebaseDatabase.instance
+    setState(() {
+      _ref = FirebaseDatabase.instance
         .reference()
         .child("rideRequest")
         .orderByChild("time_created");
+    });
   }
 
   @override
@@ -233,8 +236,8 @@ class _HomeTabState extends State<HomeTab> {
                   tripDetails.tripId = snapshot.key;
                   tripList.add(tripDetails);
                   return TripTile(
-                      tripDetails: tripList[index],
-                    );
+                    tripDetails: tripList[index],
+                  );
                 },
               ),
             ),
@@ -352,7 +355,8 @@ class TripTile extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30)),
                 onPressed: () {
-                  print(tripDetails.tripId);
+                  TripHelperMethods.checkTripAvailablity(
+                      tripDetails, context);
                 },
                 child: PersianTextField(
                     text: "قبول سفر", color: Colors.white, textSize: 17),
