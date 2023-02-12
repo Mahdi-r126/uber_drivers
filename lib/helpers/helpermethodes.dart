@@ -1,10 +1,11 @@
+import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:uber_drivers/globalVar.dart';
 import 'package:uber_drivers/helpers/requestHelper.dart';
 
 import '../models/directionDetails.dart';
 
-class HelperMethods{
-
+class HelperMethods {
   static Future<DirectionDetails?> getDirectionDetails(
       LatLng startPosition, LatLng endPosition) async {
     String url =
@@ -39,7 +40,6 @@ class HelperMethods{
     return distance.round();
   }
 
-
   static String splitDisplayName(String name) {
     if (name != null) {
       final split = name.split(',');
@@ -62,5 +62,15 @@ class HelperMethods{
     }
 
     return input;
+  }
+
+  static void disableHomeTabLocationUpdates() {
+    homeTabPositionStream.pause();
+    Geofire.removeLocation(currentFirebaseUser.uid);
+  }
+
+  static void enableHomeTabLocationUpdates() {
+    homeTabPositionStream.resume();
+    Geofire.setLocation(currentFirebaseUser.uid,currentPosition.latitude,currentPosition.longitude);
   }
 }

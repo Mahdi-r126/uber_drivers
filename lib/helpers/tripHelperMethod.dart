@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:toast/toast.dart';
+import 'package:uber_drivers/helpers/helpermethodes.dart';
 import 'package:uber_drivers/models/tripDetails.dart';
 import 'package:uber_drivers/screens/newTripPage.dart';
 import 'package:uber_drivers/widgets/ProgressDialog.dart';
@@ -15,7 +16,7 @@ class TripHelperMethods {
         barrierDismissible: false,
         builder: (BuildContext context) =>
             ProgressDialog(status: "Accepting request"));
-            
+
     ToastContext().init(context);
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -36,6 +37,7 @@ class TripHelperMethods {
       }
       if (thisTripId == tripDetails.tripId) {
         newtripRef.set("Accepted");
+        HelperMethods.disableHomeTabLocationUpdates();
         Navigator.push(
             context,
             MaterialPageRoute(
@@ -47,19 +49,22 @@ class TripHelperMethods {
             duration: Toast.lengthShort,
             gravity: Toast.bottom,
             backgroundRadius: 10,
-            textStyle: const TextStyle(fontFamily: "vazir",color: Colors.white));
+            textStyle:
+                const TextStyle(fontFamily: "vazir", color: Colors.white));
       } else if (thisTripId == "timeout") {
         Toast.show("مهلت سفر به پایان رسیده",
             duration: Toast.lengthShort,
             gravity: Toast.bottom,
             backgroundRadius: 10,
-            textStyle: const TextStyle(fontFamily: "vazir",color: Colors.white));
+            textStyle:
+                const TextStyle(fontFamily: "vazir", color: Colors.white));
       } else {
         Toast.show("خطا در قبول سفر",
             duration: Toast.lengthShort,
             gravity: Toast.bottom,
             backgroundRadius: 10,
-            textStyle: const TextStyle(fontFamily: "vazir",color: Colors.white));
+            textStyle:
+                const TextStyle(fontFamily: "vazir", color: Colors.white));
       }
     });
   }
