@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:uber_drivers/brand_colors.dart';
 import 'package:uber_drivers/globalVar.dart';
+import 'package:uber_drivers/helpers/mapKitHelper.dart';
 import 'package:uber_drivers/models/directionDetails.dart';
 import 'package:uber_drivers/models/tripDetails.dart';
 import 'package:uber_drivers/widgets/Text.dart';
-
 import '../helpers/helpermethodes.dart';
 import '../widgets/ProgressDialog.dart';
 
@@ -38,6 +40,28 @@ class _NewTripPageState extends State<NewTripPage> {
 
   var directionDetails;
 
+  var geoLocator = Geolocator();
+  var locationOptions =
+      const LocationOptions(accuracy: LocationAccuracy.bestForNavigation);
+
+  late Position myPosition;
+
+  late BitmapDescriptor movingMarkerIcon;
+
+  String status = "accepted";
+
+  String duration = "";
+
+  bool isRequestingDirection = false;
+
+  void createCustomMarker() {
+    ImageConfiguration imageConfiguration =
+        createLocalImageConfiguration(context, size: const Size(2, 2));
+    BitmapDescriptor.fromAssetImage(
+            imageConfiguration, "assets/images/car_android.png")
+        .then((icon) => movingMarkerIcon = icon);
+  }
+
   @override
   void initState() {
     // TODO: implement initState
@@ -47,6 +71,7 @@ class _NewTripPageState extends State<NewTripPage> {
 
   @override
   Widget build(BuildContext context) {
+    createCustomMarker();
     return Scaffold(
         body: Stack(
       children: [
@@ -69,6 +94,7 @@ class _NewTripPageState extends State<NewTripPage> {
                 LatLng(currentPosition.latitude, currentPosition.longitude);
             var pickupLatLng = widget.tripDetails.pickup;
             await getDirection(currentLatLng, pickupLatLng!);
+            getLocationUpdates();
           },
         ),
         Positioned(
@@ -95,7 +121,8 @@ class _NewTripPageState extends State<NewTripPage> {
                 Align(
                   alignment: Alignment.topRight,
                   child: PersianTextField(
-                    text: "14 دقیقه",
+                    text:
+                        "${HelperMethods.replaceFarsiNumber(HelperMethods.calculateDuration(duration).toString())} دقیقه تا مبدا ",
                     textSize: 14,
                     fontWeight: FontWeight.bold,
                     color: BrandColors.colorAccentPurple,
@@ -109,13 +136,16 @@ class _NewTripPageState extends State<NewTripPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     PersianTextField(
-                      text: "مهدی رضایی",
+                      text: widget.tripDetails.riderName.toString(),
                       textSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
-                    const Icon(
-                      Icons.call,
-                      textDirection: TextDirection.rtl,
+                    InkWell(
+                      // onTap: (() => launch(widget.tripDetails.riderPhone)),
+                      child: const Icon(
+                        Icons.call,
+                        textDirection: TextDirection.rtl,
+                      ),
                     ),
                   ],
                 ),
@@ -200,6 +230,71 @@ class _NewTripPageState extends State<NewTripPage> {
       'longitude': currentPosition.longitude.toString()
     };
     acceptTripRef.child("driver_location").set(locationMap);
+  }
+
+  void getLocationUpdates() {
+    LatLng oldPosition = const LatLng(0, 0);
+    ridePositionStream = geoLocator
+        .getPositionStream(locationOptions)
+        .listen((Position position) {
+      myPosition = position;
+      currentPosition = position;
+      LatLng pos = LatLng(position.latitude, position.longitude);
+
+      var rotation = MapKitHelper.getMarkerRotation(oldPosition.latitude,
+          oldPosition.longitude, pos.latitude, pos.longitude);
+
+      Marker movingMarker = Marker(
+          markerId: MarkerId("moving"),
+          position: pos,
+          icon: movingMarkerIcon,
+          rotation: rotation.toDouble(),
+          infoWindow: const InfoWindow(title: "مکان شما"));
+
+      setState(() {
+        CameraPosition cp = CameraPosition(target: pos, zoom: 17);
+        rideMapController.animateCamera(CameraUpdate.newCameraPosition(cp));
+
+        _markers.removeWhere((marker) => marker.markerId.value == "moving");
+        _markers.add(movingMarker);
+      });
+      oldPosition = pos;
+      updateTripDetails();
+      Map locationMap = {
+        'latitude': myPosition.latitude,
+        'lonitude': myPosition.longitude
+      };
+      acceptTripRef.child("driver_location").set(locationMap);
+    });
+  }
+
+  void updateTripDetails() async {
+    if (!isRequestingDirection) {
+      isRequestingDirection = true;
+      if (myPosition == null) {
+        return;
+      }
+      var positionLatLng = LatLng(myPosition.latitude, myPosition.longitude);
+
+      LatLng destinationLatLng;
+
+      if (status == "accepted") {
+        destinationLatLng = widget.tripDetails.pickup!;
+      } else {
+        destinationLatLng = widget.tripDetails.destination!;
+      }
+      var directionDetails = await HelperMethods.getDirectionDetails(
+          positionLatLng, destinationLatLng);
+
+      if (directionDetails != null) {
+        print(directionDetails.duration.toString());
+        setState(() {
+          duration = directionDetails.duration.toString();
+        });
+      }
+
+      isRequestingDirection = false;
+    }
   }
 
   Future<void> getDirection(

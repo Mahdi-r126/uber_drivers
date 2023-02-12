@@ -40,6 +40,14 @@ class HelperMethods {
     return distance.round();
   }
 
+  static int calculateDuration(String duration) {
+    if (duration == "") {
+      return 0;
+    }
+    int minute = (double.parse(duration) / 60).round();
+    return minute;
+  }
+
   static String splitDisplayName(String name) {
     if (name != null) {
       final split = name.split(',');
@@ -71,6 +79,7 @@ class HelperMethods {
 
   static void enableHomeTabLocationUpdates() {
     homeTabPositionStream.resume();
-    Geofire.setLocation(currentFirebaseUser.uid,currentPosition.latitude,currentPosition.longitude);
+    Geofire.setLocation(currentFirebaseUser.uid, currentPosition.latitude,
+        currentPosition.longitude);
   }
 }

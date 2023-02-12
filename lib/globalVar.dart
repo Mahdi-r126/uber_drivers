@@ -10,6 +10,7 @@ late FirebaseUser currentFirebaseUser;
 late bool statusg;
 late DatabaseReference tripRequestRef;
 late StreamSubscription<Position> homeTabPositionStream;
+late StreamSubscription<Position> ridePositionStream;
 late Position currentPosition;
 late DatabaseReference acceptTripRef;
 late DriverModels currentDriverInfo;
