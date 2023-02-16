@@ -27,7 +27,7 @@ class HelperMethods {
     return directionDetails;
   }
 
-  static int calculateMoney(DirectionDetails details) {
+  static int calculateMoney(DirectionDetails details,int durationValue) {
     double baseMoney = 4;
     double distance = (details.distance! / 1000) * 0.7;
     double duration = (details.duration! / 60) * 0.3;
@@ -40,12 +40,12 @@ class HelperMethods {
     return distance.round();
   }
 
-  static int calculateDuration(String duration) {
+  static String calculateDuration(String duration) {
     if (duration == "") {
-      return 0;
+      return "در حال محاسبه";
     }
     int minute = (double.parse(duration) / 60).round();
-    return minute;
+    return "${minute.toString()} دقیقه تا مبدا";
   }
 
   static String splitDisplayName(String name) {
@@ -57,7 +57,7 @@ class HelperMethods {
 
       return "${values[0]},،${values[1]}";
     } else {
-      return "";
+      return "در حال محاسبه";
     }
   }
 

@@ -54,6 +54,12 @@ class _NewTripPageState extends State<NewTripPage> {
 
   bool isRequestingDirection = false;
 
+  String buttonTitle = "رسیدن به مبدا";
+  Color buttonColor = BrandColors.colorGreen;
+
+  late Timer timer;
+  int durationCounter = 0;
+
   void createCustomMarker() {
     ImageConfiguration imageConfiguration =
         createLocalImageConfiguration(context, size: const Size(2, 2));
@@ -121,8 +127,8 @@ class _NewTripPageState extends State<NewTripPage> {
                 Align(
                   alignment: Alignment.topRight,
                   child: PersianTextField(
-                    text:
-                        "${HelperMethods.replaceFarsiNumber(HelperMethods.calculateDuration(duration).toString())} دقیقه تا مبدا ",
+                    text: HelperMethods.replaceFarsiNumber(
+                        HelperMethods.calculateDuration(duration).toString()),
                     textSize: 14,
                     fontWeight: FontWeight.bold,
                     color: BrandColors.colorAccentPurple,
@@ -193,15 +199,44 @@ class _NewTripPageState extends State<NewTripPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 50),
                   child: MaterialButton(
-                    color: BrandColors.colorGreen,
+                    color: buttonColor,
                     height: 40,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30)),
-                    onPressed: () {},
                     child: PersianTextField(
-                        text: "رسیدن به مقصد",
-                        color: Colors.white,
-                        textSize: 17),
+                        text: buttonTitle, color: Colors.white, textSize: 17),
+                    onPressed: () async {
+                      if (status == "accepted") {
+                        status = "arrived";
+                        acceptTripRef.child("status").set(("arrived"));
+
+                        setState(() {
+                          buttonColor = BrandColors.colorAccentPurple;
+                          buttonTitle = "شروع سفر";
+                        });
+                        showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (BuildContext context) =>
+                                const ProgressDialog(status: "درحال مسیریابی"));
+                        await getDirection(widget.tripDetails.pickup!,
+                            widget.tripDetails.destination!);
+
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      } else if (status == "arrivrd") {
+                        status = "on trip";
+                        acceptTripRef.child("status").set("ontrip");
+
+                        setState(() {
+                          buttonTitle = "پایان سفر";
+                          buttonColor = Colors.red[900]!;
+                        });
+                        startTimer();
+                      } else if (status == "on trip") {
+                        endTrip();
+                      }
+                    },
                   ),
                 )
               ],
@@ -373,5 +408,34 @@ class _NewTripPageState extends State<NewTripPage> {
       _markers.add(pickupMarker);
       _markers.add(destinationMarker);
     });
+  }
+
+  void startTimer() {
+    const interval = Duration(seconds: 1);
+    timer = Timer.periodic(interval, (timer) {
+      durationCounter++;
+    });
+  }
+
+  void endTrip() async {
+    timer.cancel();
+
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) =>
+            const ProgressDialog(status: "پایان سفر"));
+
+    var currentLatLng = LatLng(myPosition.latitude, myPosition.longitude);
+    var directionDetails = await HelperMethods.getDirectionDetails(
+        widget.tripDetails.pickup!, currentLatLng);
+
+    Navigator.pop(context);
+
+    int fares =
+        HelperMethods.calculateMoney(directionDetails!, durationCounter);
+    acceptTripRef.child("fares").set(fares.toString());
+    acceptTripRef.child("status").set("ended");
+    ridePositionStream.cancel();
   }
 }
