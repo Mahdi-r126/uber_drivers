@@ -23,7 +23,7 @@ The feathers of this app are :<br />
 ## Clone project
 
 ```
-https://github.com/Mahdi-r126/Uber_drivers
+git clone https://github.com/Mahdi-r126/Uber_drivers
 ```
 
 ## Run this project
